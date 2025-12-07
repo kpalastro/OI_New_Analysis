@@ -33,7 +33,7 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
-| `timestamp` | TIMESTAMP | NO | Snapshot timestamp (IST) |
+| `timestamp` | TIMESTAMPTZ | NO | Snapshot timestamp (with timezone) |
 | `exchange` | TEXT | NO | Exchange name (NSE, BSE, etc.) |
 | `strike` | DOUBLE PRECISION | NO | Strike price |
 | `option_type` | TEXT | NO | Option type (CE or PE) |
@@ -57,8 +57,8 @@ The database consists of **9 main tables**:
 | `ask_quantity` | DOUBLE PRECISION | YES | Ask quantity |
 | `spread` | DOUBLE PRECISION | YES | Bid-ask spread |
 | `order_book_imbalance` | DOUBLE PRECISION | YES | Order book imbalance ratio |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
-| `updated_at` | TIMESTAMP | NO | Record update timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
+| `updated_at` | TIMESTAMPTZ | NO | Record update timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `id`
@@ -79,7 +79,7 @@ The database consists of **9 main tables**:
 
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
-| `timestamp` | TIMESTAMP | NO | Feature timestamp (IST) |
+| `timestamp` | TIMESTAMPTZ | NO | Feature timestamp (IST) |
 | `exchange` | TEXT | NO | Exchange name |
 | `pcr_total_oi` | DOUBLE PRECISION | YES | Put-Call Ratio (total OI) |
 | `pcr_itm_oi` | DOUBLE PRECISION | YES | Put-Call Ratio (ITM OI) |
@@ -109,7 +109,7 @@ The database consists of **9 main tables**:
 | `sentiment_score_100` | DOUBLE PRECISION | YES | NIFTY100 sentiment score |
 | `trin_50` | DOUBLE PRECISION | YES | NIFTY50 TRIN value |
 | `trin_100` | DOUBLE PRECISION | YES | NIFTY100 TRIN value |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 | `feature_payload` | TEXT | YES | JSON payload with additional features |
 
 **Constraints**:
@@ -131,12 +131,12 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `exchange` | TEXT | NO | Exchange name (PRIMARY KEY) |
-| `last_update_time` | TIMESTAMP | NO | Last update timestamp |
+| `last_update_time` | TIMESTAMPTZ | NO | Last update timestamp |
 | `last_atm_strike` | DOUBLE PRECISION | YES | Last ATM strike price |
 | `last_underlying_price` | DOUBLE PRECISION | YES | Last underlying price |
 | `last_future_price` | DOUBLE PRECISION | YES | Last future price |
 | `last_future_oi` | BIGINT | YES | Last future OI |
-| `updated_at` | TIMESTAMP | NO | Record update timestamp (default: NOW()) |
+| `updated_at` | TIMESTAMPTZ | NO | Record update timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `exchange`
@@ -155,14 +155,14 @@ The database consists of **9 main tables**:
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
 | `exchange` | TEXT | NO | Exchange name |
-| `start_timestamp` | TIMESTAMP | NO | Training window start |
-| `end_timestamp` | TIMESTAMP | NO | Training window end |
+| `start_timestamp` | TIMESTAMPTZ | NO | Training window start |
+| `end_timestamp` | TIMESTAMPTZ | NO | Training window end |
 | `model_hash` | TEXT | YES | Model hash/version |
 | `artifact_path` | TEXT | YES | Path to model artifact |
 | `csv_path` | TEXT | YES | Path to CSV export |
 | `parquet_path` | TEXT | YES | Path to Parquet export |
 | `metadata` | TEXT | YES | JSON metadata |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 | `dataset_version` | TEXT | YES | Dataset version identifier |
 
 **Constraints**:
@@ -182,7 +182,7 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
-| `timestamp` | TIMESTAMP | NO | Snapshot timestamp |
+| `timestamp` | TIMESTAMPTZ | NO | Snapshot timestamp |
 | `exchange` | TEXT | NO | Exchange name |
 | `front_month_price` | DOUBLE PRECISION | YES | Front month VIX price |
 | `next_month_price` | DOUBLE PRECISION | YES | Next month VIX price |
@@ -195,7 +195,7 @@ The database consists of **9 main tables**:
 | `vix_trend_1d` | DOUBLE PRECISION | YES | VIX 1-day trend |
 | `vix_trend_5d` | DOUBLE PRECISION | YES | VIX 5-day trend |
 | `source` | TEXT | YES | Data source identifier |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `id`
@@ -216,7 +216,7 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
-| `timestamp` | TIMESTAMP | NO | Snapshot timestamp |
+| `timestamp` | TIMESTAMPTZ | NO | Snapshot timestamp |
 | `exchange` | TEXT | NO | Exchange name |
 | `fii_flow` | DOUBLE PRECISION | YES | FII net flow (₹ Cr) |
 | `dii_flow` | DOUBLE PRECISION | YES | DII net flow (₹ Cr) |
@@ -235,7 +235,7 @@ The database consists of **9 main tables**:
 | `sentiment_score_100` | DOUBLE PRECISION | YES | NIFTY100 sentiment score (0-100) |
 | `sentiment_confidence_100` | DOUBLE PRECISION | YES | NIFTY100 sentiment confidence (0-100) |
 | `trin_100` | DOUBLE PRECISION | YES | NIFTY100 TRIN value |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `id`
@@ -256,13 +256,13 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
-| `timestamp` | TIMESTAMP | NO | Snapshot timestamp |
+| `timestamp` | TIMESTAMPTZ | NO | Snapshot timestamp |
 | `exchange` | TEXT | NO | Exchange name |
 | `depth_buy_total` | DOUBLE PRECISION | YES | Total buy depth |
 | `depth_sell_total` | DOUBLE PRECISION | YES | Total sell depth |
 | `depth_imbalance_ratio` | DOUBLE PRECISION | YES | Depth imbalance ratio |
 | `source` | TEXT | YES | Data source identifier |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `id`
@@ -283,7 +283,7 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
-| `timestamp` | TIMESTAMP | NO | Signal timestamp |
+| `timestamp` | TIMESTAMPTZ | NO | Signal timestamp |
 | `exchange` | TEXT | NO | Exchange name |
 | `executed` | BOOLEAN | NO | Whether trade was executed |
 | `reason` | TEXT | YES | Execution reason or rejection reason |
@@ -292,7 +292,7 @@ The database consists of **9 main tables**:
 | `quantity_lots` | INTEGER | YES | Quantity in lots |
 | `pnl` | DOUBLE PRECISION | YES | Profit/Loss (if closed) |
 | `constraint_violation` | BOOLEAN | NO | Whether risk constraint was violated (default: FALSE) |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `id`
@@ -313,7 +313,7 @@ The database consists of **9 main tables**:
 | Field Name | Data Type | Nullable | Description |
 |------------|-----------|----------|-------------|
 | `id` | SERIAL | NO | Primary key (auto-increment) |
-| `timestamp` | TIMESTAMP | NO | Bar timestamp |
+| `timestamp` | TIMESTAMPTZ | NO | Bar timestamp |
 | `exchange` | TEXT | NO | Exchange name |
 | `resolution` | TEXT | NO | Bar resolution (1min, 5min, 15min, 1D) |
 | `token` | INTEGER | NO | Instrument token |
@@ -329,7 +329,7 @@ The database consists of **9 main tables**:
 | `trade_count` | INTEGER | YES | Number of trades in the bar |
 | `spread_avg` | DOUBLE PRECISION | YES | Average bid-ask spread |
 | `imbalance_avg` | DOUBLE PRECISION | YES | Average order book imbalance |
-| `created_at` | TIMESTAMP | NO | Record creation timestamp (default: NOW()) |
+| `created_at` | TIMESTAMPTZ | NO | Record creation timestamp (default: NOW()) |
 
 **Constraints**:
 - PRIMARY KEY: `id`
@@ -396,7 +396,7 @@ Database connection settings are configured via environment variables (see `conf
 
 ## Notes
 
-1. **All timestamps are stored in IST (Indian Standard Time)**
+1. **All timestamps use TIMESTAMPTZ (timestamp with time zone)** - This follows TimescaleDB best practices and ensures proper timezone handling
 2. **TimescaleDB hypertables** are created automatically for time-series tables
 3. **Indexes** are created for common query patterns
 4. **Migrations** are run automatically to add missing columns

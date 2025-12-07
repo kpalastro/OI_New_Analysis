@@ -173,7 +173,7 @@ def initialize_database():
                 '''
                 CREATE TABLE IF NOT EXISTS option_chain_snapshots (
                     id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     strike DOUBLE PRECISION NOT NULL,
                     option_type TEXT NOT NULL,
@@ -197,14 +197,14 @@ def initialize_database():
                     ask_quantity DOUBLE PRECISION,
                     spread DOUBLE PRECISION,
                     order_book_imbalance DOUBLE PRECISION,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW(),
                     UNIQUE(timestamp, exchange, strike, option_type)
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS ml_features (
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     pcr_total_oi DOUBLE PRECISION,
                     pcr_itm_oi DOUBLE PRECISION,
@@ -223,7 +223,7 @@ def initialize_database():
                     percent_oichange_fut_3m DOUBLE PRECISION,
                     itm_oi_ce_pct_change_3m_wavg DOUBLE PRECISION,
                     itm_oi_pe_pct_change_3m_wavg DOUBLE PRECISION,
-                    created_at TIMESTAMP DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
                     feature_payload TEXT,
                     PRIMARY KEY (timestamp, exchange)
                 )
@@ -231,33 +231,33 @@ def initialize_database():
                 '''
                 CREATE TABLE IF NOT EXISTS exchange_metadata (
                     exchange TEXT PRIMARY KEY,
-                    last_update_time TIMESTAMP NOT NULL,
+                    last_update_time TIMESTAMPTZ NOT NULL,
                     last_atm_strike DOUBLE PRECISION,
                     last_underlying_price DOUBLE PRECISION,
                     last_future_price DOUBLE PRECISION,
                     last_future_oi BIGINT,
-                    updated_at TIMESTAMP DEFAULT NOW()
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS training_batches (
                     id SERIAL PRIMARY KEY,
                     exchange TEXT NOT NULL,
-                    start_timestamp TIMESTAMP NOT NULL,
-                    end_timestamp TIMESTAMP NOT NULL,
+                    start_timestamp TIMESTAMPTZ NOT NULL,
+                    end_timestamp TIMESTAMPTZ NOT NULL,
                     model_hash TEXT,
                     artifact_path TEXT,
                     csv_path TEXT,
                     parquet_path TEXT,
                     metadata TEXT,
-                    created_at TIMESTAMP DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
                     dataset_version TEXT
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS vix_term_structure (
                     id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     front_month_price DOUBLE PRECISION,
                     next_month_price DOUBLE PRECISION,
@@ -270,13 +270,13 @@ def initialize_database():
                     vix_trend_1d DOUBLE PRECISION,
                     vix_trend_5d DOUBLE PRECISION,
                     source TEXT,
-                    created_at TIMESTAMP DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW()
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS macro_signals (
                     id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     fii_flow DOUBLE PRECISION,
                     dii_flow DOUBLE PRECISION,
@@ -295,25 +295,25 @@ def initialize_database():
                     sentiment_score_100 DOUBLE PRECISION,
                     sentiment_confidence_100 DOUBLE PRECISION,
                     trin_100 DOUBLE PRECISION,
-                    created_at TIMESTAMP DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW()
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS order_book_depth_snapshots (
                     id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     depth_buy_total DOUBLE PRECISION,
                     depth_sell_total DOUBLE PRECISION,
                     depth_imbalance_ratio DOUBLE PRECISION,
                     source TEXT,
-                    created_at TIMESTAMP DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW()
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS paper_trading_metrics (
                     id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     executed BOOLEAN NOT NULL,
                     reason TEXT,
@@ -322,13 +322,13 @@ def initialize_database():
                     quantity_lots INTEGER,
                     pnl DOUBLE PRECISION,
                     constraint_violation BOOLEAN DEFAULT FALSE,
-                    created_at TIMESTAMP DEFAULT NOW()
+                    created_at TIMESTAMPTZ DEFAULT NOW()
                 )
                 ''',
                 '''
                 CREATE TABLE IF NOT EXISTS multi_resolution_bars (
                     id SERIAL PRIMARY KEY,
-                    timestamp TIMESTAMP NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
                     exchange TEXT NOT NULL,
                     resolution TEXT NOT NULL,
                     token INTEGER NOT NULL,
@@ -344,7 +344,7 @@ def initialize_database():
                     trade_count INTEGER,
                     spread_avg DOUBLE PRECISION,
                     imbalance_avg DOUBLE PRECISION,
-                    created_at TIMESTAMP DEFAULT NOW(),
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
                     UNIQUE(timestamp, exchange, resolution, token)
                 )
                 '''
