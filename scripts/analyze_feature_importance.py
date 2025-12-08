@@ -107,24 +107,54 @@ def load_model_files(exchange: str) -> Tuple[List[str], Dict, Any]:
     return feature_names, regime_models, feature_selector
 
 
-def extract_feature_importance(model: Any, feature_names: List[str]) -> List[Tuple[str, float]]:
+def extract_feature_importance(
+    model: Any, 
+    feature_names: List[str], 
+    feature_selector: Any = None
+) -> List[Tuple[str, float]]:
     """Extract feature importance from a model."""
     importance_scores = []
     
     # LightGBM models
     if hasattr(model, 'feature_importances_'):
         scores = model.feature_importances_
-        if len(scores) == len(feature_names):
-            importance_scores = list(zip(feature_names, scores))
+        
+        # Check if model was trained on selected features
+        if feature_selector is not None and hasattr(feature_selector, 'get_support'):
+            # Model was trained on selected features via selector
+            support = feature_selector.get_support()
+            selected_indices = [i for i, s in enumerate(support) if s]
+            
+            if len(scores) == len(selected_indices):
+                # Map importance back to full feature list
+                importance_dict = {feature_names[selected_indices[i]]: scores[i] 
+                                 for i in range(len(scores))}
+                importance_scores = [(f, importance_dict.get(f, 0.0)) for f in feature_names]
+            else:
+                LOGGER.warning(f"Score count ({len(scores)}) doesn't match selected features ({len(selected_indices)})")
+                return []
+        
         elif hasattr(model, 'feature_name_'):
-            # Model was trained on selected features
+            # Model has its own feature names (LightGBM)
             # feature_name_ is a property (list), not a method
             selected_features = model.feature_name_ if isinstance(model.feature_name_, list) else list(model.feature_name_)
-            scores_dict = dict(zip(selected_features, scores))
-            # Map to full feature list
-            importance_scores = [(f, scores_dict.get(f, 0.0)) for f in feature_names]
+            if len(scores) == len(selected_features):
+                scores_dict = dict(zip(selected_features, scores))
+                # Map to full feature list
+                importance_scores = [(f, scores_dict.get(f, 0.0)) for f in feature_names]
+            else:
+                LOGGER.warning(f"Score count ({len(scores)}) doesn't match feature names ({len(selected_features)})")
+                return []
+        
+        elif len(scores) == len(feature_names):
+            # Direct mapping - model trained on all features
+            importance_scores = list(zip(feature_names, scores))
+        
         else:
-            LOGGER.warning(f"Feature count mismatch: model has {len(scores)}, expected {len(feature_names)}")
+            LOGGER.warning(f"Feature count mismatch: model has {len(scores)} scores, expected {len(feature_names)} features")
+            LOGGER.warning(f"  Model type: {type(model)}")
+            if feature_selector is not None:
+                LOGGER.warning(f"  Feature selector available: {type(feature_selector)}")
             return []
     
     # XGBoost Booster
@@ -164,13 +194,17 @@ def extract_feature_importance(model: Any, feature_names: List[str]) -> List[Tup
     return importance_scores
 
 
-def aggregate_importance(regime_models: Dict, feature_names: List[str]) -> List[Tuple[str, float]]:
+def aggregate_importance(
+    regime_models: Dict, 
+    feature_names: List[str], 
+    feature_selector: Any = None
+) -> List[Tuple[str, float]]:
     """Aggregate feature importance across all regimes."""
     aggregated = {f: 0.0 for f in feature_names}
     regime_counts = {f: 0 for f in feature_names}
     
     for regime_id, model in regime_models.items():
-        importance = extract_feature_importance(model, feature_names)
+        importance = extract_feature_importance(model, feature_names, feature_selector)
         for feat_name, score in importance:
             aggregated[feat_name] += score
             regime_counts[feat_name] += 1
@@ -280,7 +314,7 @@ Examples:
                 return
             
             model = regime_models[args.regime]
-            importance = extract_feature_importance(model, feature_names)
+            importance = extract_feature_importance(model, feature_names, feature_selector)
             print_feature_importance(importance, f"Regime {args.regime} Feature Importance", args.top)
             results['feature_importance'][f'regime_{args.regime}'] = {
                 feat: float(score) for feat, score in importance
@@ -289,7 +323,7 @@ Examples:
         elif args.all_regimes:
             # All regimes separately
             for regime_id, model in regime_models.items():
-                importance = extract_feature_importance(model, feature_names)
+                importance = extract_feature_importance(model, feature_names, feature_selector)
                 print_feature_importance(importance, f"Regime {regime_id} Feature Importance", args.top)
                 results['feature_importance'][f'regime_{regime_id}'] = {
                     feat: float(score) for feat, score in importance
@@ -297,7 +331,7 @@ Examples:
         
         else:
             # Aggregate across all regimes
-            aggregated = aggregate_importance(regime_models, feature_names)
+            aggregated = aggregate_importance(regime_models, feature_names, feature_selector)
             print_feature_importance(aggregated, f"{args.exchange} - Overall Feature Importance (Aggregated)", args.top)
             results['feature_importance']['aggregated'] = {
                 feat: float(score) for feat, score in aggregated
@@ -309,7 +343,7 @@ Examples:
                 print("  Top Features by Regime (Top 10)")
                 print(f"{'='*80}")
                 for regime_id, model in regime_models.items():
-                    importance = extract_feature_importance(model, feature_names)
+                    importance = extract_feature_importance(model, feature_names, feature_selector)
                     top_10 = importance[:10]
                     print(f"\nRegime {regime_id} - Top 10:")
                     for rank, (feat, score) in enumerate(top_10, 1):
