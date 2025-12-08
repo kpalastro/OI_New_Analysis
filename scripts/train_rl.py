@@ -108,15 +108,17 @@ def train_strategy_agent(
     """Train RL agent for trading strategy."""
     LOGGER.info(f"Training {algorithm} strategy agent for {exchange}...")
     
-    # Create environment
-    env = TradingEnvironment(
-        exchange=exchange,
-        features_df=features_df,
-        initial_capital=1_000_000.0
-    )
+    # Create environment factory function
+    # Each call must create a NEW environment instance
+    def make_env():
+        return TradingEnvironment(
+            exchange=exchange,
+            features_df=features_df.copy(),  # Copy dataframe to avoid sharing state
+            initial_capital=1_000_000.0
+        )
     
     # Create vectorized environment for faster training
-    vec_env = make_vec_env(lambda: env, n_envs=4)
+    vec_env = make_vec_env(make_env, n_envs=4)
     
     # Initialize model
     if algorithm.upper() == "PPO":
