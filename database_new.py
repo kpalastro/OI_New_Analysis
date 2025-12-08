@@ -839,10 +839,13 @@ def load_historical_data_for_ml(exchange: str, start_date: date, end_date: date)
                 WHERE exchange = {ph} AND timestamp >= {ph} AND timestamp <= {ph}
                 ORDER BY timestamp ASC
             """
+            # Convert date to string if it's a date object, otherwise use as-is
+            start_str = start_date.isoformat() if hasattr(start_date, 'isoformat') else str(start_date)
+            end_str = end_date.isoformat() if hasattr(end_date, 'isoformat') else str(end_date)
             # psycopg2 prefers standard SQL params, pandas read_sql handles execution
             # But read_sql with psycopg2 connection might need params as list/tuple
             df = pd.read_sql_query(query, conn, 
-                                 params=(exchange, start_date.isoformat(), end_date.isoformat()))
+                                 params=(exchange, start_str, end_str))
             release_db_connection(conn)
             
             if not df.empty:
