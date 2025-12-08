@@ -118,7 +118,8 @@ def extract_feature_importance(model: Any, feature_names: List[str]) -> List[Tup
             importance_scores = list(zip(feature_names, scores))
         elif hasattr(model, 'feature_name_'):
             # Model was trained on selected features
-            selected_features = model.feature_name_()
+            # feature_name_ is a property (list), not a method
+            selected_features = model.feature_name_ if isinstance(model.feature_name_, list) else list(model.feature_name_)
             scores_dict = dict(zip(selected_features, scores))
             # Map to full feature list
             importance_scores = [(f, scores_dict.get(f, 0.0)) for f in feature_names]
