@@ -139,9 +139,54 @@ async def broadcast_state():
                         # Add latest signal/sentiment if available
                     }
                 
-                # Check for sentiment
-                if hasattr(_APP_MANAGER, 'last_nifty_sentiment_data'):
-                    payload["sentiment"] = _APP_MANAGER.last_nifty_sentiment_data
+                # Transform sentiment data to match dashboard expectations
+                sentiment_payload = {}
+                if hasattr(_APP_MANAGER, 'last_nifty_sentiment_data') and _APP_MANAGER.last_nifty_sentiment_data:
+                    sent_data = _APP_MANAGER.last_nifty_sentiment_data
+                    
+                    # Calculate A/D ratio from TRIN (approximation: A/D ≈ 1/TRIN when TRIN is close to 1)
+                    # Better: use sentiment_score to infer A/D ratio
+                    # A/D ratio can be approximated: if score > 50, A/D > 1, if score < 50, A/D < 1
+                    trin_50 = sent_data.get('trin_50')
+                    score_50 = sent_data.get('sentiment_score_50', 50.0)
+                    
+                    # Calculate A/D ratio from sentiment score
+                    # Score formula: 50 + 50 * (combined_ratio - 1) / (combined_ratio + 1)
+                    # Solving for combined_ratio: combined_ratio = (score - 50) / (150 - score)
+                    # For simplicity, use: ad_ratio ≈ (score / 50) when score > 50, else (50 / score)
+                    if score_50 is not None and score_50 > 0:
+                        if score_50 >= 50:
+                            ad_ratio_50 = 1.0 + (score_50 - 50) / 50.0  # Maps 50->1.0, 100->2.0
+                        else:
+                            ad_ratio_50 = 50.0 / score_50 if score_50 > 0 else 1.0  # Maps 25->2.0, 50->1.0
+                    else:
+                        ad_ratio_50 = 1.0
+                    
+                    # Use overall sentiment score (prefer NIFTY50, fallback to NIFTY100)
+                    overall_score = sent_data.get('sentiment_score_50') or sent_data.get('sentiment_score_100') or 50.0
+                    
+                    # Get FII/DII net from macro_state
+                    fii_dii_net = _APP_MANAGER.macro_state.get('fii_dii_net') if hasattr(_APP_MANAGER, 'macro_state') else None
+                    
+                    sentiment_payload = {
+                        "nifty50": {
+                            "ad_ratio": ad_ratio_50,
+                            "sentiment_score": sent_data.get('sentiment_score_50'),
+                            "confidence": sent_data.get('sentiment_confidence_50'),
+                            "trin": trin_50
+                        },
+                        "nifty100": {
+                            "ad_ratio": 1.0,  # Can be calculated similarly if needed
+                            "sentiment_score": sent_data.get('sentiment_score_100'),
+                            "confidence": sent_data.get('sentiment_confidence_100'),
+                            "trin": sent_data.get('trin_100')
+                        },
+                        "overall_sentiment_score": overall_score if overall_score is not None else 50.0,
+                        "fii_dii_net": fii_dii_net
+                    }
+                
+                if sentiment_payload:
+                    payload["sentiment"] = sentiment_payload
                 
                 await manager.broadcast(json.dumps(payload))
                 

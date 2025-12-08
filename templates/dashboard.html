@@ -99,12 +99,22 @@
                 const s = data.sentiment;
                 const ad50 = s.nifty50?.ad_ratio || 0;
                 const score = s.overall_sentiment_score || 0;
+                const fiiDiiNet = s.fii_dii_net;
                 
                 const adEl = document.getElementById('sent-ad50');
                 adEl.textContent = ad50.toFixed(2);
                 adEl.className = "metric-val " + (ad50 > 1 ? "positive" : "negative");
 
                 document.getElementById('sent-score').textContent = score.toFixed(1);
+                
+                const flowEl = document.getElementById('sent-flow');
+                if (fiiDiiNet !== null && fiiDiiNet !== undefined) {
+                    flowEl.textContent = fiiDiiNet.toFixed(2);
+                    flowEl.className = "metric-val " + (fiiDiiNet > 0 ? "positive" : "negative");
+                } else {
+                    flowEl.textContent = "--";
+                    flowEl.className = "metric-val";
+                }
             }
         }
 
