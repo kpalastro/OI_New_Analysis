@@ -1,14 +1,14 @@
 {
   "exchange": "NSE",
-  "generated_at": "2025-12-05T17:08:26.281366+05:30",
+  "generated_at": "2025-12-08T07:26:35.042445+05:30",
   "dataset": {
-    "rows": 1685,
-    "start": "2025-11-24T09:58:57",
-    "end": "2025-12-04T14:54:48",
-    "feature_count": 84
+    "rows": 1667,
+    "start": "2025-11-24T09:58:57+00:00",
+    "end": "2025-12-05T15:01:08+00:00",
+    "feature_count": 112
   },
   "config": {
-    "days": 30,
+    "days": 150,
     "window_days": 4,
     "step_days": 1,
     "families": [
@@ -16,7 +16,7 @@
       "XGBoost",
       "CatBoost"
     ],
-    "optuna_trials": 2
+    "optuna_trials": 10
   },
   "segments_evaluated": 6,
   "segments": [
@@ -24,33 +24,33 @@
       "segment_id": 1,
       "family": "LightGBM",
       "train_range": {
-        "start": "2025-11-24T09:58:57",
-        "end": "2025-11-28T09:58:57"
+        "start": "2025-11-24T09:58:57+00:00",
+        "end": "2025-11-28T09:58:57+00:00"
       },
       "validation_range": {
-        "start": "2025-11-28T09:58:57",
-        "end": "2025-11-29T09:58:57"
+        "start": "2025-11-28T09:58:57+00:00",
+        "end": "2025-11-29T09:58:57+00:00"
       },
       "metrics": {
-        "accuracy": 0.5,
-        "f1_macro": 0.38238573021181715,
-        "f1_weighted": 0.43946488294314384,
-        "precision_macro": 0.3771043771043771,
-        "recall_macro": 0.4635964912280702
+        "accuracy": 0.5047619047619047,
+        "f1_macro": 0.3873132235708849,
+        "f1_weighted": 0.44625932093784515,
+        "precision_macro": 0.3918192385934321,
+        "recall_macro": 0.46880482456140354
       },
       "best_params": {
         "objective": "multiclass",
         "num_class": 3,
         "n_estimators": 500,
-        "learning_rate": 0.01493681104518093,
-        "num_leaves": 64,
+        "learning_rate": 0.06197241671317267,
+        "num_leaves": 24,
         "max_depth": -1,
-        "subsample": 0.7379219273433414,
-        "colsample_bytree": 0.9337179378721807,
+        "subsample": 0.6955518565519742,
+        "colsample_bytree": 0.6826390935440559,
         "random_state": 42,
         "n_jobs": -1
       },
-      "optuna_score": 0.38238573021181715,
+      "optuna_score": 0.3873132235708849,
       "sample_counts": {
         "train": 863,
         "validation": 210
@@ -60,34 +60,34 @@
       "segment_id": 1,
       "family": "XGBoost",
       "train_range": {
-        "start": "2025-11-24T09:58:57",
-        "end": "2025-11-28T09:58:57"
+        "start": "2025-11-24T09:58:57+00:00",
+        "end": "2025-11-28T09:58:57+00:00"
       },
       "validation_range": {
-        "start": "2025-11-28T09:58:57",
-        "end": "2025-11-29T09:58:57"
+        "start": "2025-11-28T09:58:57+00:00",
+        "end": "2025-11-29T09:58:57+00:00"
       },
       "metrics": {
-        "accuracy": 0.4666666666666667,
-        "f1_macro": 0.3562535370684777,
-        "f1_weighted": 0.40729646697388633,
-        "precision_macro": 0.3676183923861942,
-        "recall_macro": 0.4390350877192983
+        "accuracy": 0.48095238095238096,
+        "f1_macro": 0.3682850618915996,
+        "f1_weighted": 0.4232206522796596,
+        "precision_macro": 0.37118570183086314,
+        "recall_macro": 0.44786184210526314
       },
       "best_params": {
         "objective": "multi:softprob",
         "num_class": 3,
-        "n_estimators": 200,
-        "max_depth": 8,
-        "learning_rate": 0.024066995690713484,
-        "subsample": 0.6325932555685877,
-        "colsample_bytree": 0.6943459037652745,
-        "reg_lambda": 2.021674343660161,
+        "n_estimators": 600,
+        "max_depth": 10,
+        "learning_rate": 0.06442258301325984,
+        "subsample": 0.8438839691461812,
+        "colsample_bytree": 0.8343677656250605,
+        "reg_lambda": 2.326768405359975,
         "random_state": 42,
         "tree_method": "hist",
         "eval_metric": "mlogloss"
       },
-      "optuna_score": 0.3562535370684777,
+      "optuna_score": 0.3682850618915996,
       "sample_counts": {
         "train": 863,
         "validation": 210
@@ -97,31 +97,31 @@
       "segment_id": 1,
       "family": "CatBoost",
       "train_range": {
-        "start": "2025-11-24T09:58:57",
-        "end": "2025-11-28T09:58:57"
+        "start": "2025-11-24T09:58:57+00:00",
+        "end": "2025-11-28T09:58:57+00:00"
       },
       "validation_range": {
-        "start": "2025-11-28T09:58:57",
-        "end": "2025-11-29T09:58:57"
+        "start": "2025-11-28T09:58:57+00:00",
+        "end": "2025-11-29T09:58:57+00:00"
       },
       "metrics": {
-        "accuracy": 0.48095238095238096,
-        "f1_macro": 0.36682691356559244,
-        "f1_weighted": 0.42075465832365355,
-        "precision_macro": 0.352450434018982,
-        "recall_macro": 0.4444627192982456
+        "accuracy": 0.49523809523809526,
+        "f1_macro": 0.37781862018537177,
+        "f1_weighted": 0.4338288063194686,
+        "precision_macro": 0.36191626409017713,
+        "recall_macro": 0.456688596491228
       },
       "best_params": {
         "loss_function": "MultiClass",
-        "iterations": 900,
+        "iterations": 300,
         "depth": 7,
-        "learning_rate": 0.02711227213886297,
-        "l2_leaf_reg": 3.9056681488145557,
+        "learning_rate": 0.06606696844876818,
+        "l2_leaf_reg": 3.6116526605939447,
         "random_seed": 42,
         "verbose": false,
         "allow_writing_files": false
       },
-      "optuna_score": 0.36682691356559244,
+      "optuna_score": 0.37781862018537177,
       "sample_counts": {
         "train": 863,
         "validation": 210
@@ -131,178 +131,178 @@
       "segment_id": 5,
       "family": "LightGBM",
       "train_range": {
-        "start": "2025-11-28T09:58:57",
-        "end": "2025-12-02T09:58:57"
+        "start": "2025-11-28T09:58:57+00:00",
+        "end": "2025-12-02T09:58:57+00:00"
       },
       "validation_range": {
-        "start": "2025-12-02T09:58:57",
-        "end": "2025-12-03T09:58:57"
+        "start": "2025-12-02T09:58:57+00:00",
+        "end": "2025-12-03T09:58:57+00:00"
       },
       "metrics": {
-        "accuracy": 0.37566137566137564,
-        "f1_macro": 0.37099637078242126,
-        "f1_weighted": 0.36751104399561585,
-        "precision_macro": 0.4222429673885984,
-        "recall_macro": 0.37805633246908793
+        "accuracy": 0.559322033898305,
+        "f1_macro": 0.4570048309178743,
+        "f1_weighted": 0.6252517808892164,
+        "precision_macro": 0.5555555555555555,
+        "recall_macro": 0.3966861598440546
       },
       "best_params": {
         "objective": "multiclass",
         "num_class": 3,
         "n_estimators": 800,
-        "learning_rate": 0.01378965406293779,
-        "num_leaves": 88,
+        "learning_rate": 0.06076704297107994,
+        "num_leaves": 96,
         "max_depth": -1,
-        "subsample": 0.9342253908274465,
-        "colsample_bytree": 0.9415170777776402,
+        "subsample": 0.7672947457830227,
+        "colsample_bytree": 0.6508605139224861,
         "random_state": 42,
         "n_jobs": -1
       },
-      "optuna_score": 0.37099637078242126,
+      "optuna_score": 0.4570048309178743,
       "sample_counts": {
-        "train": 214,
-        "validation": 189
+        "train": 269,
+        "validation": 59
       }
     },
     {
       "segment_id": 5,
       "family": "XGBoost",
       "train_range": {
-        "start": "2025-11-28T09:58:57",
-        "end": "2025-12-02T09:58:57"
+        "start": "2025-11-28T09:58:57+00:00",
+        "end": "2025-12-02T09:58:57+00:00"
       },
       "validation_range": {
-        "start": "2025-12-02T09:58:57",
-        "end": "2025-12-03T09:58:57"
+        "start": "2025-12-02T09:58:57+00:00",
+        "end": "2025-12-03T09:58:57+00:00"
       },
       "metrics": {
-        "accuracy": 0.43386243386243384,
-        "f1_macro": 0.4218946837994457,
-        "f1_weighted": 0.4253460349454303,
-        "precision_macro": 0.43655089572952016,
-        "recall_macro": 0.42317266534648074
+        "accuracy": 0.6610169491525424,
+        "f1_macro": 0.4495633845227341,
+        "f1_weighted": 0.6521825670234104,
+        "precision_macro": 0.5579710144927535,
+        "recall_macro": 0.4273879142300195
       },
       "best_params": {
         "objective": "multi:softprob",
         "num_class": 3,
         "n_estimators": 300,
-        "max_depth": 8,
-        "learning_rate": 0.07450635095431891,
-        "subsample": 0.7778596229597938,
-        "colsample_bytree": 0.9392766212872155,
-        "reg_lambda": 2.0439817345318856,
+        "max_depth": 4,
+        "learning_rate": 0.053469470481187546,
+        "subsample": 0.719146819453226,
+        "colsample_bytree": 0.7208377323023132,
+        "reg_lambda": 2.1402435306182235,
         "random_state": 42,
         "tree_method": "hist",
         "eval_metric": "mlogloss"
       },
-      "optuna_score": 0.4218946837994457,
+      "optuna_score": 0.4495633845227341,
       "sample_counts": {
-        "train": 214,
-        "validation": 189
+        "train": 269,
+        "validation": 59
       }
     },
     {
       "segment_id": 5,
       "family": "CatBoost",
       "train_range": {
-        "start": "2025-11-28T09:58:57",
-        "end": "2025-12-02T09:58:57"
+        "start": "2025-11-28T09:58:57+00:00",
+        "end": "2025-12-02T09:58:57+00:00"
       },
       "validation_range": {
-        "start": "2025-12-02T09:58:57",
-        "end": "2025-12-03T09:58:57"
+        "start": "2025-12-02T09:58:57+00:00",
+        "end": "2025-12-03T09:58:57+00:00"
       },
       "metrics": {
-        "accuracy": 0.455026455026455,
-        "f1_macro": 0.4364061196300737,
-        "f1_weighted": 0.44768999167413165,
-        "precision_macro": 0.4371759039533126,
-        "recall_macro": 0.43995127561262753
+        "accuracy": 0.7457627118644068,
+        "f1_macro": 0.5200421940928269,
+        "f1_weighted": 0.7358399485089037,
+        "precision_macro": 0.5557543231961837,
+        "recall_macro": 0.50682261208577
       },
       "best_params": {
         "loss_function": "MultiClass",
-        "iterations": 500,
-        "depth": 7,
-        "learning_rate": 0.0725597632944552,
-        "l2_leaf_reg": 2.6829806842491326,
+        "iterations": 800,
+        "depth": 5,
+        "learning_rate": 0.08563687402018248,
+        "l2_leaf_reg": 4.472416784368062,
         "random_seed": 42,
         "verbose": false,
         "allow_writing_files": false
       },
-      "optuna_score": 0.4364061196300737,
+      "optuna_score": 0.5200421940928269,
       "sample_counts": {
-        "train": 214,
-        "validation": 189
+        "train": 269,
+        "validation": 59
       }
     }
   ],
   "best_by_family": {
     "LightGBM": {
-      "segment_id": 1,
+      "segment_id": 5,
       "metrics": {
-        "accuracy": 0.5,
-        "f1_macro": 0.38238573021181715,
-        "f1_weighted": 0.43946488294314384,
-        "precision_macro": 0.3771043771043771,
-        "recall_macro": 0.4635964912280702
+        "accuracy": 0.559322033898305,
+        "f1_macro": 0.4570048309178743,
+        "f1_weighted": 0.6252517808892164,
+        "precision_macro": 0.5555555555555555,
+        "recall_macro": 0.3966861598440546
       },
       "params": {
         "objective": "multiclass",
         "num_class": 3,
-        "n_estimators": 500,
-        "learning_rate": 0.01493681104518093,
-        "num_leaves": 64,
+        "n_estimators": 800,
+        "learning_rate": 0.06076704297107994,
+        "num_leaves": 96,
         "max_depth": -1,
-        "subsample": 0.7379219273433414,
-        "colsample_bytree": 0.9337179378721807,
+        "subsample": 0.7672947457830227,
+        "colsample_bytree": 0.6508605139224861,
         "random_state": 42,
         "n_jobs": -1
       },
-      "optuna_score": 0.38238573021181715
+      "optuna_score": 0.4570048309178743
     },
     "XGBoost": {
       "segment_id": 5,
       "metrics": {
-        "accuracy": 0.43386243386243384,
-        "f1_macro": 0.4218946837994457,
-        "f1_weighted": 0.4253460349454303,
-        "precision_macro": 0.43655089572952016,
-        "recall_macro": 0.42317266534648074
+        "accuracy": 0.6610169491525424,
+        "f1_macro": 0.4495633845227341,
+        "f1_weighted": 0.6521825670234104,
+        "precision_macro": 0.5579710144927535,
+        "recall_macro": 0.4273879142300195
       },
       "params": {
         "objective": "multi:softprob",
         "num_class": 3,
         "n_estimators": 300,
-        "max_depth": 8,
-        "learning_rate": 0.07450635095431891,
-        "subsample": 0.7778596229597938,
-        "colsample_bytree": 0.9392766212872155,
-        "reg_lambda": 2.0439817345318856,
+        "max_depth": 4,
+        "learning_rate": 0.053469470481187546,
+        "subsample": 0.719146819453226,
+        "colsample_bytree": 0.7208377323023132,
+        "reg_lambda": 2.1402435306182235,
         "random_state": 42,
         "tree_method": "hist",
         "eval_metric": "mlogloss"
       },
-      "optuna_score": 0.4218946837994457
+      "optuna_score": 0.4495633845227341
     },
     "CatBoost": {
       "segment_id": 5,
       "metrics": {
-        "accuracy": 0.455026455026455,
-        "f1_macro": 0.4364061196300737,
-        "f1_weighted": 0.44768999167413165,
-        "precision_macro": 0.4371759039533126,
-        "recall_macro": 0.43995127561262753
+        "accuracy": 0.7457627118644068,
+        "f1_macro": 0.5200421940928269,
+        "f1_weighted": 0.7358399485089037,
+        "precision_macro": 0.5557543231961837,
+        "recall_macro": 0.50682261208577
       },
       "params": {
         "loss_function": "MultiClass",
-        "iterations": 500,
-        "depth": 7,
-        "learning_rate": 0.0725597632944552,
-        "l2_leaf_reg": 2.6829806842491326,
+        "iterations": 800,
+        "depth": 5,
+        "learning_rate": 0.08563687402018248,
+        "l2_leaf_reg": 4.472416784368062,
         "random_seed": 42,
         "verbose": false,
         "allow_writing_files": false
       },
-      "optuna_score": 0.4364061196300737
+      "optuna_score": 0.5200421940928269
     }
   }
 }
