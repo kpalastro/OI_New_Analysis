@@ -45,9 +45,9 @@ class RLAction:
     position_size: float  # Fraction of capital (0 to 1)
 
 
-class TradingEnvironment:
+class TradingEnvironment(gym.Env if gym else object):
     """
-    Gym-style environment for RL training using backtest engine.
+    Gymnasium-compatible environment for RL training using backtest engine.
     """
     
     def __init__(
@@ -56,6 +56,9 @@ class TradingEnvironment:
         features_df: Any,  # pd.DataFrame
         initial_capital: float = 1_000_000.0,
     ):
+        if not SB3_AVAILABLE or gym is None:
+            raise ImportError("Gymnasium is required for TradingEnvironment")
+        
         self.exchange = exchange
         self.features_df = features_df
         self.initial_capital = initial_capital
@@ -66,42 +69,92 @@ class TradingEnvironment:
         
         if features_df is None or len(features_df) == 0:
             raise ValueError("Features dataframe is empty")
+        
+        # Define observation space (state vector)
+        # State includes: features + position + portfolio_value
+        feature_cols = [col for col in self.features_df.columns 
+                       if col not in ['timestamp', 'target', 'future_return']]
+        n_features = len(feature_cols)
+        state_dim = n_features + 2  # features + position + portfolio_value
+        
+        self.observation_space = spaces.Box(
+            low=-np.inf, 
+            high=np.inf, 
+            shape=(state_dim,), 
+            dtype=np.float32
+        )
+        
+        # Define action space
+        # Action: [signal (-1, 0, 1), position_size (0 to 1)]
+        # Using Box for continuous position_size, but we'll discretize signal
+        # For simplicity, we'll use a single continuous action that maps to both
+        self.action_space = spaces.Box(
+            low=np.array([-1.0, 0.0], dtype=np.float32),
+            high=np.array([1.0, 1.0], dtype=np.float32),
+            dtype=np.float32
+        )
     
-    def reset(self) -> np.ndarray:
+    def reset(self, seed=None, options=None):
         """Reset environment to initial state."""
+        if seed is not None:
+            np.random.seed(seed)
+        
         self.current_step = 0
         self.current_position = 0.0
         self.portfolio_value = self.initial_capital
         self.done = False
-        return self._get_state()
+        
+        observation = self._get_state()
+        info = {}
+        return observation, info
     
-    def step(self, action: RLAction) -> Tuple[np.ndarray, float, bool, Dict]:
+    def step(self, action):
         """
-        Execute action and return next state, reward, done, info.
+        Execute action and return next state, reward, done, truncated, info.
         
         Args:
-            action: RLAction with signal and position_size
+            action: Array-like [signal, position_size] or RLAction
         
         Returns:
-            Tuple of (next_state, reward, done, info)
+            Tuple of (observation, reward, terminated, truncated, info)
         """
         if self.done:
-            return self._get_state(), 0.0, True, {}
+            obs = self._get_state()
+            return obs, 0.0, True, False, {}
+        
+        # Convert action to RLAction format
+        if isinstance(action, (list, np.ndarray)):
+            signal = np.clip(action[0], -1.0, 1.0)
+            position_size = np.clip(action[1], 0.0, 1.0)
+            # Discretize signal to -1, 0, or 1
+            if signal < -0.33:
+                signal = -1
+            elif signal > 0.33:
+                signal = 1
+            else:
+                signal = 0
+        elif isinstance(action, RLAction):
+            signal = action.signal
+            position_size = action.position_size
+        else:
+            # Fallback: assume single value is signal
+            signal = int(np.clip(action, -1, 1))
+            position_size = 0.5
         
         # Get current price and future return
         current_row = self.features_df.iloc[self.current_step]
-        # future_return = current_row.get('future_return', 0.0) # Unused var
-        # current_price = current_row.get('underlying_price', 0.0) # Unused var
         
         # Calculate PnL from action
-        position_change = action.position_size - self.current_position
-        if action.signal != 0 and position_change != 0:
+        position_change = position_size - self.current_position
+        if signal != 0 and abs(position_change) > 0.01:  # Only if significant change
             # Transaction cost (assume 0.02% per trade)
             transaction_cost = abs(position_change) * self.portfolio_value * 0.0002
             self.portfolio_value -= transaction_cost
         
-        # Update position
-        self.current_position = action.position_size
+        # Update position based on signal
+        if signal != 0:
+            self.current_position = position_size if signal > 0 else -position_size
+        # If signal is 0 (HOLD), keep current position
         
         # Calculate reward (PnL normalized by capital)
         if self.current_step + 1 < len(self.features_df):
@@ -112,7 +165,9 @@ class TradingEnvironment:
             reward = 0.0
         
         self.current_step += 1
-        self.done = self.current_step >= len(self.features_df) - 1
+        terminated = self.current_step >= len(self.features_df) - 1
+        truncated = False  # Not using time limits
+        self.done = terminated
         
         info = {
             'portfolio_value': self.portfolio_value,
@@ -120,23 +175,40 @@ class TradingEnvironment:
             'step': self.current_step,
         }
         
-        return self._get_state(), reward, self.done, info
+        observation = self._get_state()
+        return observation, reward, terminated, truncated, info
     
     def _get_state(self) -> np.ndarray:
         """Extract state vector from current features."""
         if self.current_step >= len(self.features_df):
-            return np.zeros(50)  # Default state size
+            # Return zeros if out of bounds
+            feature_cols = [col for col in self.features_df.columns 
+                           if col not in ['timestamp', 'target', 'future_return']]
+            state = np.zeros(len(feature_cols) + 2, dtype=np.float32)
+            return state
         
         row = self.features_df.iloc[self.current_step]
         # Extract numeric features (exclude timestamp, target, etc.)
         feature_cols = [col for col in self.features_df.columns 
                        if col not in ['timestamp', 'target', 'future_return']]
-        state = row[feature_cols].values.astype(float)
+        
+        # Get feature values, handling NaN
+        feature_values = []
+        for col in feature_cols:
+            val = row.get(col, 0.0)
+            if pd.isna(val):
+                val = 0.0
+            feature_values.append(float(val))
+        
+        state = np.array(feature_values, dtype=np.float32)
         
         # Add position and portfolio info
-        state = np.append(state, [self.current_position, self.portfolio_value / self.initial_capital])
+        state = np.append(state, [
+            float(self.current_position), 
+            float(self.portfolio_value / self.initial_capital)
+        ])
         
-        return state
+        return state.astype(np.float32)
 
 
 class RLStrategy:
