@@ -28,6 +28,11 @@ from starlette.requests import Request
 app = FastAPI()
 LOGGER = logging.getLogger("DashboardServer")
 
+# Setup templates directory
+from pathlib import Path
+TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
 # Global reference to AppManager (will be injected)
 _APP_MANAGER = None
 
@@ -57,6 +62,11 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # --- Routes ---
+
+@app.get("/")
+async def dashboard_home(request: Request):
+    """Serve the dashboard HTML page."""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
 
 @app.get("/api/status")
 async def get_status():
