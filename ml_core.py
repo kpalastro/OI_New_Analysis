@@ -132,13 +132,39 @@ class MLSignalGenerator:
             if self.use_rl and self.rl_strategy and self.rl_strategy.model_loaded:
                 # Use RL model for prediction
                 try:
-                    # Prepare state vector for RL (same as ensemble input)
-                    state_vector = np.array(feature_values, dtype=np.float32)
+                    # Prepare state vector for RL
+                    # RL models are typically trained on a subset of key features
+                    # Use core features that are most relevant for trading decisions
+                    core_features = [
+                        'pcr_total_oi',
+                        'futures_premium',
+                        'vix',
+                        'underlying_price',
+                        'atm_shift_intensity',
+                        'put_call_iv_skew',
+                        'net_gamma_exposure',
+                    ]
+                    
+                    # Extract core features from features_dict
+                    rl_feature_values = []
+                    for feat in core_features:
+                        val = features_dict.get(feat, 0.0)
+                        if pd.isna(val) if 'pd' in globals() else (val is None or (isinstance(val, float) and np.isnan(val))):
+                            val = 0.0
+                        rl_feature_values.append(float(val))
+                    
+                    # Create state vector: 7 core features + position + portfolio = 9 features
+                    state_vector = np.array(rl_feature_values, dtype=np.float32)
                     # Add position and portfolio info
                     state_vector = np.append(state_vector, [
-                        self.rl_position,
-                        self.rl_portfolio_value / 1_000_000.0  # Normalized
+                        float(self.rl_position),
+                        float(self.rl_portfolio_value / 1_000_000.0)  # Normalized
                     ])
+                    
+                    # Ensure shape matches model expectation (9,)
+                    if state_vector.shape[0] != 9:
+                        logging.warning(f"[{self.exchange}] RL state vector shape mismatch: {state_vector.shape}, expected (9,). Using ensemble instead.")
+                        raise ValueError(f"State vector shape {state_vector.shape} != (9,)")
                     
                     # Get RL action
                     action = self.rl_strategy.predict(state_vector)
