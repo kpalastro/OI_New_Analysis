@@ -24,7 +24,8 @@ logs/
 build/
 dist/
 metrics/
-
+models/NSE/
+models/BSE/
 *.egg-info/
 
 # IDE
