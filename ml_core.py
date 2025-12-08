@@ -23,6 +23,15 @@ from time_utils import now_ist
 from models.multi_horizon_ensemble import MultiHorizonEnsemble
 from regime_analysis import MarketRegimeDetector
 
+# Optional RL support
+try:
+    from models.reinforcement_learning import RLStrategy, RLState
+    RL_AVAILABLE = True
+except ImportError:
+    RL_AVAILABLE = False
+    RLStrategy = None
+    RLState = None
+
 SIGNAL_MAP = {-1: 'SELL', 0: 'HOLD', 1: 'BUY'}
 
 
@@ -39,6 +48,32 @@ class MLSignalGenerator:
 
         # Phase 5: Enhanced Regime Detector
         self.regime_detector = MarketRegimeDetector(exchange)
+        
+        # Reinforcement Learning (optional)
+        self.rl_strategy: Optional[RLStrategy] = None
+        self.use_rl: bool = False  # Enable via config or method
+        if RL_AVAILABLE:
+            try:
+                # Try to load RL model (PPO or DQN)
+                rl_model_path = Path(f"models/{exchange}/rl")
+                # Check for PPO first, then DQN
+                ppo_path = list(rl_model_path.glob("ppo_strategy_*.zip"))
+                dqn_path = list(rl_model_path.glob("dqn_strategy_*.zip"))
+                
+                if ppo_path:
+                    self.rl_strategy = RLStrategy(exchange, model_path=str(ppo_path[0]), algorithm="PPO")
+                    if self.rl_strategy.model_loaded:
+                        self.use_rl = True
+                        logging.info(f"[{exchange}] RL model loaded: {ppo_path[0]}")
+                elif dqn_path:
+                    self.rl_strategy = RLStrategy(exchange, model_path=str(dqn_path[0]), algorithm="DQN")
+                    if self.rl_strategy.model_loaded:
+                        self.use_rl = True
+                        logging.info(f"[{exchange}] RL model loaded: {dqn_path[0]}")
+                else:
+                    logging.debug(f"[{exchange}] No RL model found in {rl_model_path}")
+            except Exception as e:
+                logging.warning(f"[{exchange}] RL model loading failed: {e}")
         
         self.strategy_metrics = {
             'win_rate': 0.58,
@@ -57,6 +92,10 @@ class MLSignalGenerator:
         
         # Rolling buffer for Sequence Models (if needed by ensemble)
         self.regime_feature_buffer: deque = deque(maxlen=60)
+        
+        # RL state tracking (for position/portfolio context)
+        self.rl_position: float = 0.0
+        self.rl_portfolio_value: float = 1_000_000.0  # Normalized
 
     def generate_signal(self, features_dict: Dict[str, Any]) -> Tuple[str, float, str, Dict]:
         """
@@ -89,13 +128,60 @@ class MLSignalGenerator:
                 'time_to_expiry_hours': features_dict.get('time_to_expiry_hours', 24.0)
             }
             
-            # 3. Get Prediction from Ensemble (Phase 2)
-            ensemble_result = self.model_ensemble.predict(ensemble_input)
-            
-            signal = ensemble_result.get('signal', 'HOLD')
-            confidence = ensemble_result.get('confidence', 0.0)
-            horizon = ensemble_result.get('horizon', 'unknown')
-            probabilities = ensemble_result.get('probabilities', [0.0, 0.0, 0.0]) # Sell, Hold, Buy
+            # 3. Get Prediction from Ensemble (Phase 2) or RL
+            if self.use_rl and self.rl_strategy and self.rl_strategy.model_loaded:
+                # Use RL model for prediction
+                try:
+                    # Prepare state vector for RL (same as ensemble input)
+                    state_vector = np.array(feature_values, dtype=np.float32)
+                    # Add position and portfolio info
+                    state_vector = np.append(state_vector, [
+                        self.rl_position,
+                        self.rl_portfolio_value / 1_000_000.0  # Normalized
+                    ])
+                    
+                    # Get RL action
+                    action = self.rl_strategy.predict(state_vector)
+                    
+                    # Map RL action to signal
+                    signal = SIGNAL_MAP.get(action.signal, 'HOLD')
+                    confidence = abs(action.position_size)  # Use position size as confidence
+                    horizon = 'rl'
+                    probabilities = [0.0, 0.0, 0.0]  # RL doesn't provide probabilities
+                    if action.signal == 1:
+                        probabilities[2] = confidence  # BUY
+                    elif action.signal == -1:
+                        probabilities[0] = confidence  # SELL
+                    else:
+                        probabilities[1] = 1.0 - confidence  # HOLD
+                    
+                    ensemble_result = {
+                        'signal': signal,
+                        'confidence': confidence,
+                        'horizon': horizon,
+                        'probabilities': probabilities,
+                        'source': 'rl',
+                        'position_size': action.position_size,
+                    }
+                    
+                    # Update RL state
+                    self.rl_position = action.position_size if action.signal > 0 else -action.position_size if action.signal < 0 else self.rl_position
+                    
+                except Exception as e:
+                    logging.warning(f"[{self.exchange}] RL prediction failed, falling back to ensemble: {e}")
+                    # Fallback to ensemble
+                    ensemble_result = self.model_ensemble.predict(ensemble_input)
+                    signal = ensemble_result.get('signal', 'HOLD')
+                    confidence = ensemble_result.get('confidence', 0.0)
+                    horizon = ensemble_result.get('horizon', 'unknown')
+                    probabilities = ensemble_result.get('probabilities', [0.0, 0.0, 0.0])
+            else:
+                # Use standard ensemble
+                ensemble_result = self.model_ensemble.predict(ensemble_input)
+                signal = ensemble_result.get('signal', 'HOLD')
+                confidence = ensemble_result.get('confidence', 0.0)
+                horizon = ensemble_result.get('horizon', 'unknown')
+                probabilities = ensemble_result.get('probabilities', [0.0, 0.0, 0.0]) # Sell, Hold, Buy
             
             # 4. Regime Adjustment (Phase 5)
             # Downgrade signal if regime is hostile
@@ -135,7 +221,13 @@ class MLSignalGenerator:
                 'regime_risk_scale': regime_config['risk_scale'],
                 'rolling_accuracy': self._rolling_accuracy(),
                 'last_feedback_at': self.last_feedback_timestamp.isoformat() if self.last_feedback_timestamp else None,
+                'model_source': ensemble_result.get('source', 'ensemble'),  # 'rl' or 'ensemble'
             }
+            
+            # Add RL-specific metadata if using RL
+            if self.use_rl and ensemble_result.get('source') == 'rl':
+                metadata['rl_position_size'] = ensemble_result.get('position_size', 0.0)
+                metadata['rl_algorithm'] = self.rl_strategy.algorithm if self.rl_strategy else 'unknown'
 
             self.signal_history.append({'signal': signal, 'confidence': confidence, 'regime': current_regime})
             metadata['signal_history'] = list(self.signal_history)[-5:]

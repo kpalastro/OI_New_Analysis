@@ -785,12 +785,19 @@ class FeatureWorker(MpProcess):
 
                     collector = get_metrics_collector(exchange)
                     try:
-                        collector.record_model_performance(
-                            signal=signal,
-                            confidence=confidence,
-                            source=metadata.get('regime', 'lightgbm'),
-                            metadata=metadata
-                        )
+                    # Determine source for metrics
+                    model_source = metadata.get('model_source', 'ensemble')
+                    if model_source == 'rl':
+                        source = 'rl'
+                    else:
+                        source = metadata.get('regime', 'lightgbm')
+                    
+                    collector.record_model_performance(
+                        signal=signal,
+                        confidence=confidence,
+                        source=source,
+                        metadata=metadata
+                    )
                     except Exception as me:
                         logging.debug(f"[{exchange}] Metrics recording failed: {me}")
 
