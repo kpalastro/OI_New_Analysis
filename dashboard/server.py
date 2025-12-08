@@ -72,12 +72,20 @@ async def get_exchange_state(exchange: str):
     handler = _APP_MANAGER.exchange_handlers.get(exchange)
     if not handler:
         return {"error": "Exchange not found"}
+    
+    # Get state safely with lock
+    with handler.lock:
+        spot_price = handler.latest_oi_data.get('underlying_price')
+        atm_strike = handler.latest_oi_data.get('atm_strike')
+        future_price = handler.latest_future_price
+        expiry = handler.expiry_date.isoformat() if handler.expiry_date else None
         
     # Snapshot of critical state
     return {
-        "spot_price": handler.latest_spot_price,
-        "future_price": handler.latest_future_price,
-        "expiry": handler.expiry_date.isoformat() if handler.expiry_date else None,
+        "spot_price": spot_price,
+        "future_price": future_price,
+        "atm_strike": atm_strike,
+        "expiry": expiry,
         "positions": _APP_MANAGER.open_positions if hasattr(_APP_MANAGER, 'open_positions') else {}
     }
 
@@ -108,10 +116,16 @@ async def broadcast_state():
                 }
                 
                 for ex_name, handler in _APP_MANAGER.exchange_handlers.items():
+                    # Get state safely with lock
+                    with handler.lock:
+                        spot_price = handler.latest_oi_data.get('underlying_price')
+                        atm_strike = handler.latest_oi_data.get('atm_strike')
+                        future_price = handler.latest_future_price
+                    
                     payload["exchanges"][ex_name] = {
-                        "spot": handler.latest_spot_price,
-                        "future": handler.latest_future_price,
-                        "atm": handler.atm_strike,
+                        "spot": spot_price,
+                        "future": future_price,
+                        "atm": atm_strike,
                         # Add latest signal/sentiment if available
                     }
                 
