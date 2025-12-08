@@ -102,8 +102,10 @@ class TradingEnvironment(gym.Env if gym else object):
         # Signal: 3 options (-1, 0, 1)
         # Position size: 5 bins (0.0, 0.25, 0.5, 0.75, 1.0)
         # Total: 3 * 5 = 15 discrete actions
-        self.discrete_action_space = spaces.MultiDiscrete([3, 5])
+        # DQN only supports Discrete, not MultiDiscrete, so we flatten to a single Discrete(15)
+        self.discrete_action_space = spaces.Discrete(15)  # 3 signals × 5 position sizes
         self.position_size_bins = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+        self.signal_map = [-1, 0, 1]  # Map signal index to actual signal
     
     def set_action_space(self, space_type: str):
         """Switch between continuous and discrete action spaces."""
@@ -150,21 +152,17 @@ class TradingEnvironment(gym.Env if gym else object):
         
         # Convert action to RLAction format
         if self._action_space_type == "discrete":
-            # Discrete action: [signal_idx (0-2), position_size_idx (0-4)]
-            if isinstance(action, (list, np.ndarray)):
-                signal_idx = int(action[0])
-                position_size_idx = int(action[1])
-            else:
-                # Single integer action (flattened)
-                signal_idx = int(action) // 5
-                position_size_idx = int(action) % 5
+            # Discrete action: single integer 0-14
+            # Decode: action = signal_idx * 5 + position_size_idx
+            action_int = int(action)
+            signal_idx = action_int // 5  # 0, 1, or 2
+            position_size_idx = action_int % 5  # 0, 1, 2, 3, or 4
             
             # Map signal index to actual signal
-            signal_map = [-1, 0, 1]
-            signal = signal_map[signal_idx % 3]
+            signal = self.signal_map[signal_idx]
             
             # Map position size index to actual position size
-            position_size = float(self.position_size_bins[position_size_idx % 5])
+            position_size = float(self.position_size_bins[position_size_idx])
         else:
             # Continuous action space
             if isinstance(action, (list, np.ndarray)):
