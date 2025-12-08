@@ -2,6 +2,11 @@
 CLI wrapper for the OI Gemini backtesting engine.
 
 Usage:
+    python -m backtesting.run --exchange NSE --start 2025-10-01 --end 2025-11-18 \
+        --strategy ml_signal --holding-period 15 --cost-bps 2.0 --slippage-bps 1.5
+    
+    OR
+    
     python backtesting/run.py --exchange NSE --start 2025-10-01 --end 2025-11-18 \
         --strategy ml_signal --holding-period 15 --cost-bps 2.0 --slippage-bps 1.5
 """
@@ -10,10 +15,17 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 
-from .engine import BacktestConfig, BacktestEngine
+# Handle both relative and absolute imports
+try:
+    from .engine import BacktestConfig, BacktestEngine
+except ImportError:
+    # If relative import fails, add parent directory to path and use absolute import
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from backtesting.engine import BacktestConfig, BacktestEngine
 
 
 def _parse_date(value: str):
