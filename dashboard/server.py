@@ -8,6 +8,12 @@ import logging
 from typing import Dict, List, Optional
 from datetime import datetime
 
+try:
+    import uvicorn
+except ImportError:
+    uvicorn = None
+    logging.warning("uvicorn not available - dashboard server will not start")
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -129,7 +135,10 @@ def run_dashboard_server(host="0.0.0.0", port=8000, app_manager=None):
     Helper to run Uvicorn programmatically.
     Call this from a separate thread.
     """
-    import uvicorn
+    if uvicorn is None:
+        LOGGER.error("uvicorn is not installed. Please install it: pip install uvicorn")
+        return
+    
     if app_manager:
         set_app_manager(app_manager)
     

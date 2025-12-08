@@ -22,3 +22,6 @@ schedule
 psycopg2-binary
 hmmlearn
 fastapi
+uvicorn
+jinja2
+python-multipart
