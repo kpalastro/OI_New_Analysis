@@ -35,6 +35,13 @@ except ImportError:
     print("ERROR: stable-baselines3 not installed. Install with: pip install stable-baselines3[extra]")
     sys.exit(1)
 
+# Check if tensorboard is available (optional)
+try:
+    import tensorboard
+    TENSORBOARD_AVAILABLE = True
+except ImportError:
+    TENSORBOARD_AVAILABLE = False
+
 from models.reinforcement_learning import TradingEnvironment, ExecutionEnvironment, RLAction
 import database_new as db
 from config import get_config
@@ -121,6 +128,12 @@ def train_strategy_agent(
     vec_env = make_vec_env(make_env, n_envs=4)
     
     # Initialize model
+    # TensorBoard logging is optional
+    tensorboard_log = str(output_dir / "tensorboard") if TENSORBOARD_AVAILABLE else None
+    if not TENSORBOARD_AVAILABLE:
+        LOGGER.warning("TensorBoard not installed. Training will proceed without logging.")
+        LOGGER.info("Install with: pip install tensorboard")
+    
     if algorithm.upper() == "PPO":
         model = PPO(
             "MlpPolicy",
@@ -135,7 +148,7 @@ def train_strategy_agent(
             ent_coef=0.01,
             vf_coef=0.5,
             verbose=1,
-            tensorboard_log=str(output_dir / "tensorboard")
+            tensorboard_log=tensorboard_log
         )
     elif algorithm.upper() == "DQN":
         model = DQN(
@@ -150,7 +163,7 @@ def train_strategy_agent(
             exploration_fraction=0.1,
             exploration_final_eps=0.05,
             verbose=1,
-            tensorboard_log=str(output_dir / "tensorboard")
+            tensorboard_log=tensorboard_log
         )
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}. Use PPO or DQN")
@@ -205,6 +218,9 @@ def train_execution_agent(
         LOGGER.warning("Execution optimization requires PPO (continuous actions). Switching to PPO.")
         algorithm = "PPO"
     
+    # TensorBoard logging is optional
+    tensorboard_log = str(output_dir / "tensorboard") if TENSORBOARD_AVAILABLE else None
+    
     model = PPO(
         "MultiInputPolicy",  # For Dict action space
         env,
@@ -214,7 +230,7 @@ def train_execution_agent(
         n_epochs=10,
         gamma=0.99,
         verbose=1,
-        tensorboard_log=str(output_dir / "tensorboard")
+        tensorboard_log=tensorboard_log
     )
     
     # Setup callbacks
