@@ -38,7 +38,7 @@ class MultiHorizonEnsemble:
             LOGGER.warning("IntradayLSTMModel unavailable (missing torch).")
             self.intraday_model = None
             
-        self.swing_model = SwingTradingEnsemble()
+        self.swing_model = SwingTradingEnsemble(exchange=exchange)
         
         try:
             self.expiry_model = ExpiryDayTransformer()

@@ -1,6 +1,12 @@
 import logging
 import numpy as np
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+try:
+    import joblib
+except ImportError:
+    joblib = None
 
 try:
     from xgboost import XGBClassifier
@@ -17,10 +23,13 @@ class SwingTradingEnsemble:
     Ensemble of Tree-based models (XGBoost + LightGBM) for Swing Trading (1-3 days).
     Uses weighted average of probabilities from constituent models.
     """
-    def __init__(self):
+    def __init__(self, exchange: Optional[str] = None):
         self.models = {}
         self.weights = {}
         self._is_fitted = False
+        self.feature_selector = None
+        self.feature_columns = None
+        self.exchange = exchange
         
         if XGBClassifier:
             self.models['xgboost'] = XGBClassifier(
@@ -44,6 +53,30 @@ class SwingTradingEnsemble:
             
         if not self.models:
             logging.warning("No tree-based models available (XGBoost/LightGBM missing). Swing ensemble disabled.")
+        
+        # Load feature selector if exchange is provided
+        if exchange and joblib:
+            self._load_feature_selector(exchange)
+    
+    def _load_feature_selector(self, exchange: str):
+        """Load feature selector and feature columns for this exchange."""
+        model_dir = Path(f"models/{exchange}")
+        selector_path = model_dir / "feature_selector.pkl"
+        features_path = model_dir / "model_features.pkl"
+        
+        if selector_path.exists():
+            try:
+                self.feature_selector = joblib.load(selector_path)
+                logging.debug(f"Loaded feature selector for {exchange}")
+            except Exception as e:
+                logging.warning(f"Failed to load feature selector: {e}")
+        
+        if features_path.exists():
+            try:
+                self.feature_columns = joblib.load(features_path)
+                logging.debug(f"Loaded feature columns for {exchange}")
+            except Exception as e:
+                logging.warning(f"Failed to load feature columns: {e}")
 
     def fit(self, X, y):
         """Train all sub-models."""
@@ -82,16 +115,40 @@ class SwingTradingEnsemble:
         """
         Single sample inference.
         Args:
-            features: Array-like (1, n_features) or DataFrame
+            features: Array-like (1, n_features), DataFrame, or dict of feature names
         """
-        # Ensure 2D array
-        if hasattr(features, 'values'):
-            X = features.values
+        # Handle different input types
+        if isinstance(features, dict):
+            # Convert dict to array using feature_columns order
+            if self.feature_columns:
+                X = np.array([[features.get(col, 0.0) for col in self.feature_columns]])
+            else:
+                # Fallback: use dict values in order
+                X = np.array([list(features.values())])
+        elif hasattr(features, 'values'):
+            # DataFrame
+            if self.feature_columns:
+                # Select only the columns used during training
+                missing = [col for col in self.feature_columns if col not in features.columns]
+                if missing:
+                    for col in missing:
+                        features[col] = 0.0
+                X = features[self.feature_columns].values
+            else:
+                X = features.values
         else:
+            # Array-like
             X = np.array(features)
             
         if X.ndim == 1:
             X = X.reshape(1, -1)
+        
+        # Apply feature selector if available
+        if self.feature_selector is not None and hasattr(self.feature_selector, 'transform'):
+            try:
+                X = self.feature_selector.transform(X)
+            except Exception as e:
+                logging.warning(f"Feature selection failed: {e}, using all features")
              
         probs = self.predict_proba(X)[0]
         return {
