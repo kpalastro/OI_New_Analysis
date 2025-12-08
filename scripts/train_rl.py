@@ -42,6 +42,14 @@ try:
 except ImportError:
     TENSORBOARD_AVAILABLE = False
 
+# Check if progress bar dependencies are available (optional)
+try:
+    import tqdm
+    import rich
+    PROGRESS_BAR_AVAILABLE = True
+except ImportError:
+    PROGRESS_BAR_AVAILABLE = False
+
 from models.reinforcement_learning import TradingEnvironment, ExecutionEnvironment, RLAction
 import database_new as db
 from config import get_config
@@ -186,10 +194,14 @@ def train_strategy_agent(
     
     # Train model
     LOGGER.info(f"Starting training for {timesteps} timesteps...")
+    if not PROGRESS_BAR_AVAILABLE:
+        LOGGER.warning("tqdm/rich not installed. Progress bar disabled.")
+        LOGGER.info("Install with: pip install tqdm rich (or pip install stable-baselines3[extra])")
+    
     model.learn(
         total_timesteps=timesteps,
         callback=[eval_callback, checkpoint_callback],
-        progress_bar=True
+        progress_bar=PROGRESS_BAR_AVAILABLE
     )
     
     # Save final model
