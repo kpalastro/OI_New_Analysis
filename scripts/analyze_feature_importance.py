@@ -5,6 +5,9 @@ Feature Importance Analyzer for OI Gemini Models
 Analyzes feature importance from trained models and displays the most relevant features.
 Works with regime-specific models (LightGBM/XGBoost) and feature selectors.
 
+Prerequisites:
+    pip install lightgbm xgboost joblib numpy
+
 Usage:
     python scripts/analyze_feature_importance.py [NSE|BSE] [--top N] [--regime R]
     
@@ -12,6 +15,8 @@ Examples:
     python scripts/analyze_feature_importance.py NSE
     python scripts/analyze_feature_importance.py NSE --top 30
     python scripts/analyze_feature_importance.py BSE --regime 0
+    python scripts/analyze_feature_importance.py NSE --all-regimes
+    python scripts/analyze_feature_importance.py NSE --export nse_features.json
 """
 
 import argparse
