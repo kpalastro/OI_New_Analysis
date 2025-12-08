@@ -126,11 +126,17 @@ def train_strategy_agent(
     # Create environment factory function
     # Each call must create a NEW environment instance
     def make_env():
-        return TradingEnvironment(
+        env = TradingEnvironment(
             exchange=exchange,
             features_df=features_df.copy(),  # Copy dataframe to avoid sharing state
             initial_capital=1_000_000.0
         )
+        # Set action space based on algorithm
+        if algorithm.upper() == "DQN":
+            env.set_action_space("discrete")
+        else:
+            env.set_action_space("continuous")
+        return env
     
     # Create vectorized environment for faster training
     vec_env = make_vec_env(make_env, n_envs=4)

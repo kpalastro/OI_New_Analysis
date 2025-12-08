@@ -85,14 +85,40 @@ class TradingEnvironment(gym.Env if gym else object):
         )
         
         # Define action space
+        # For PPO: Continuous Box action space
+        # For DQN: Discrete action space (we'll use MultiDiscrete)
         # Action: [signal (-1, 0, 1), position_size (0 to 1)]
-        # Using Box for continuous position_size, but we'll discretize signal
-        # For simplicity, we'll use a single continuous action that maps to both
+        # Default to continuous (PPO), can be changed to discrete (DQN) via set_action_space()
+        self._action_space_type = "continuous"  # or "discrete"
+        
+        # Continuous action space (for PPO)
         self.action_space = spaces.Box(
             low=np.array([-1.0, 0.0], dtype=np.float32),
             high=np.array([1.0, 1.0], dtype=np.float32),
             dtype=np.float32
         )
+        
+        # Discrete action space (for DQN)
+        # Signal: 3 options (-1, 0, 1)
+        # Position size: 5 bins (0.0, 0.25, 0.5, 0.75, 1.0)
+        # Total: 3 * 5 = 15 discrete actions
+        self.discrete_action_space = spaces.MultiDiscrete([3, 5])
+        self.position_size_bins = np.array([0.0, 0.25, 0.5, 0.75, 1.0])
+    
+    def set_action_space(self, space_type: str):
+        """Switch between continuous and discrete action spaces."""
+        if space_type == "discrete":
+            self.action_space = self.discrete_action_space
+            self._action_space_type = "discrete"
+        elif space_type == "continuous":
+            self.action_space = spaces.Box(
+                low=np.array([-1.0, 0.0], dtype=np.float32),
+                high=np.array([1.0, 1.0], dtype=np.float32),
+                dtype=np.float32
+            )
+            self._action_space_type = "continuous"
+        else:
+            raise ValueError(f"Unknown action space type: {space_type}")
     
     def reset(self, seed=None, options=None):
         """Reset environment to initial state."""
@@ -123,23 +149,41 @@ class TradingEnvironment(gym.Env if gym else object):
             return obs, 0.0, True, False, {}
         
         # Convert action to RLAction format
-        if isinstance(action, (list, np.ndarray)):
-            signal = np.clip(action[0], -1.0, 1.0)
-            position_size = np.clip(action[1], 0.0, 1.0)
-            # Discretize signal to -1, 0, or 1
-            if signal < -0.33:
-                signal = -1
-            elif signal > 0.33:
-                signal = 1
+        if self._action_space_type == "discrete":
+            # Discrete action: [signal_idx (0-2), position_size_idx (0-4)]
+            if isinstance(action, (list, np.ndarray)):
+                signal_idx = int(action[0])
+                position_size_idx = int(action[1])
             else:
-                signal = 0
-        elif isinstance(action, RLAction):
-            signal = action.signal
-            position_size = action.position_size
+                # Single integer action (flattened)
+                signal_idx = int(action) // 5
+                position_size_idx = int(action) % 5
+            
+            # Map signal index to actual signal
+            signal_map = [-1, 0, 1]
+            signal = signal_map[signal_idx % 3]
+            
+            # Map position size index to actual position size
+            position_size = float(self.position_size_bins[position_size_idx % 5])
         else:
-            # Fallback: assume single value is signal
-            signal = int(np.clip(action, -1, 1))
-            position_size = 0.5
+            # Continuous action space
+            if isinstance(action, (list, np.ndarray)):
+                signal = np.clip(action[0], -1.0, 1.0)
+                position_size = np.clip(action[1], 0.0, 1.0)
+                # Discretize signal to -1, 0, or 1
+                if signal < -0.33:
+                    signal = -1
+                elif signal > 0.33:
+                    signal = 1
+                else:
+                    signal = 0
+            elif isinstance(action, RLAction):
+                signal = action.signal
+                position_size = action.position_size
+            else:
+                # Fallback: assume single value is signal
+                signal = int(np.clip(action, -1, 1))
+                position_size = 0.5
         
         # Get current price and future return
         current_row = self.features_df.iloc[self.current_step]
