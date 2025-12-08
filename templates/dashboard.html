@@ -63,7 +63,9 @@
 
     <script>
         const statusEl = document.getElementById('connection-status');
-        const wsUrl = `ws://${window.location.host}/ws/live`;
+        // Use wss:// for HTTPS pages, ws:// for HTTP pages
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/live`;
         let socket;
 
         function connect() {
