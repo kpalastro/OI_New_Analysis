@@ -1,0 +1,22 @@
+{
+  "config": {
+    "exchange": "NSE",
+    "strategy": "ml_signal",
+    "holding_period_minutes": 15,
+    "transaction_cost_bps": 2.0,
+    "slippage_bps": 1.0,
+    "min_confidence": 0.55,
+    "max_trades": 50,
+    "account_size": 1000000.0,
+    "margin_per_lot": 75000.0,
+    "max_risk_per_trade": 0.02,
+    "limit_rows": 1000,
+    "start": "2025-12-01",
+    "end": "2025-12-08"
+  },
+  "metrics": {},
+  "equity_curve": [],
+  "trades": [],
+  "raw_rows": 594,
+  "monte_carlo_report": null
+}

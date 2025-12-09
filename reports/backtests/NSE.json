@@ -1,6 +1,6 @@
 {
   "config": {
-    "exchange": "BSE",
+    "exchange": "NSE",
     "strategy": "ml_signal",
     "holding_period_minutes": 15,
     "transaction_cost_bps": 2.0,
@@ -11,12 +11,12 @@
     "margin_per_lot": 75000.0,
     "max_risk_per_trade": 0.02,
     "limit_rows": null,
-    "start": "2025-11-01",
-    "end": "2025-12-05"
+    "start": "2025-11-24",
+    "end": "2025-12-08"
   },
   "metrics": {},
   "equity_curve": [],
   "trades": [],
-  "raw_rows": 1434,
+  "raw_rows": 1667,
   "monte_carlo_report": null
 }
