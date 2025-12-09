@@ -257,13 +257,19 @@ class MLSignalGenerator:
                         hold_prob_final = float(probabilities[1])
                         wrong_conf_final = 1.0 - hold_prob_final
                         
-                        # Skip fix if HOLD_prob is 0.0 or very small - signal shouldn't be HOLD in that case
-                        if hold_prob_final <= 0.01:
-                            # HOLD_prob is too small - this is a data/model issue, not a confidence bug
-                            # Just use max_prob as confidence without logging
+                        # Skip fix logging if HOLD_prob is extreme (0.0 or very close to 1.0)
+                        # These are data/model issues, not confidence calculation bugs
+                        if hold_prob_final <= 0.01 or hold_prob_final >= 0.99:
+                            # HOLD_prob is extreme - silently fix confidence without logging
                             if abs(confidence - max_prob_final) > 0.0001:
                                 confidence = max_prob_final
                         elif abs(confidence - wrong_conf_final) < 0.0001:
+                            # This is the bug: confidence = 1 - HOLD_prob when it should be HOLD_prob
+                            # Log only once per unique case to reduce noise
+                            if not hasattr(self, '_last_fix_logged') or self._last_fix_logged != (signal, wrong_conf_final):
+                                logging.warning(f"[{self.exchange}] Fixed confidence bug: {confidence:.6f} (1-HOLD_prob={wrong_conf_final:.6f}) -> {max_prob_final:.6f}")
+                                self._last_fix_logged = (signal, wrong_conf_final)
+                            confidence = max_prob_final
                             # This is the bug: confidence = 1 - HOLD_prob when it should be HOLD_prob
                             # Log only once per unique case to reduce noise
                             if not hasattr(self, '_last_fix_logged') or self._last_fix_logged != (signal, wrong_conf_final):
