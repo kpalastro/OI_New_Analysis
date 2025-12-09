@@ -99,15 +99,23 @@ class SwingTradingEnsemble:
         
         for name, model in self.models.items():
             try:
-                probs = model.predict_proba(X)
-                weight = self.weights[name]
-                final_probs += probs * weight
-                total_weight += weight
+                # Check if model is actually trained (has feature_importances_ or n_estimators > 0)
+                if hasattr(model, 'feature_importances_') or (hasattr(model, 'n_estimators') and model.n_estimators > 0):
+                    probs = model.predict_proba(X)
+                    weight = self.weights[name]
+                    final_probs += probs * weight
+                    total_weight += weight
+                else:
+                    logging.debug(f"Skipping {name} - model not trained (no feature_importances_)")
             except Exception as e:
-                logging.error(f"Error predicting with {name}: {e}")
+                logging.warning(f"Error predicting with {name}: {e}")
                 
         if total_weight > 0:
             final_probs /= total_weight
+        else:
+            # If no models worked, return uniform probabilities
+            logging.warning("No trained models available, returning uniform probabilities")
+            return np.ones((X.shape[0], 3)) / 3.0
             
         return final_probs
 
@@ -151,8 +159,17 @@ class SwingTradingEnsemble:
                 logging.warning(f"Feature selection failed: {e}, using all features")
              
         probs = self.predict_proba(X)[0]
+        max_prob = float(max(probs))
+        predicted_class = int(probs.argmax())
+        
+        # DEBUG: Log if we detect the bug pattern
+        if predicted_class == 1:  # HOLD
+            hold_prob = float(probs[1])
+            if abs(max_prob - (1 - hold_prob)) < 0.0001 and hold_prob > 0.5:
+                logging.error(f"[SwingEnsemble] BUG DETECTED: max_prob={max_prob:.6f} equals 1-HOLD_prob, probs={probs.tolist()}")
+        
         return {
-            'class': int(probs.argmax()),
+            'class': predicted_class,
             'probabilities': probs.tolist()
         }
 

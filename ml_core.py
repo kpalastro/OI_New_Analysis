@@ -102,10 +102,14 @@ class MLSignalGenerator:
         Generate a trading signal based on input features.
         """
         try:
+            # DEBUG: Track confidence through the entire function
+            debug_trace = []
+            
             # 1. Detect Regime (Phase 5)
             # We pass the raw feature dict; the detector handles extraction
             current_regime = self.regime_detector.detect_regime(features_dict)
             regime_config = self.regime_detector.get_strategy_weights(current_regime)
+            debug_trace.append(f"Step 1: Regime={current_regime}")
             
             # 2. Prepare Features for Ensemble
             # Convert dict to array (assuming feature names are consistent with training)
@@ -129,6 +133,8 @@ class MLSignalGenerator:
             }
             
             # 3. Get Prediction from Ensemble (Phase 2) or RL
+            debug_trace.append(f"Step 2: Prepared ensemble_input, vector shape={ensemble_input['vector'].shape}")
+            
             if self.use_rl and self.rl_strategy and self.rl_strategy.model_loaded:
                 # Use RL model for prediction
                 try:
@@ -205,24 +211,73 @@ class MLSignalGenerator:
                 # Use standard ensemble
                 ensemble_result = self.model_ensemble.predict(ensemble_input)
                 signal = ensemble_result.get('signal', 'HOLD')
-                confidence = ensemble_result.get('confidence', 0.0)
+                original_confidence = ensemble_result.get('confidence', 0.0)
                 horizon = ensemble_result.get('horizon', 'unknown')
                 probabilities = ensemble_result.get('probabilities', [0.0, 0.0, 0.0]) # Sell, Hold, Buy
+                
+                # CRITICAL FIX: Always recalculate confidence from probabilities
+                # Confidence MUST be max(probabilities) - this is the definition
+                # Never trust the confidence value from ensemble_result - recalculate it
+                if probabilities and len(probabilities) >= 3:
+                    # Force recalculation - this is the correct confidence
+                    confidence = float(max(probabilities))
+                    # Log if we're fixing a bug (always log for debugging)
+                    if abs(original_confidence - confidence) > 0.0001:
+                        if signal == 'HOLD' and len(probabilities) > 1:
+                            hold_prob = float(probabilities[1])
+                            wrong_conf = 1.0 - hold_prob
+                            if abs(original_confidence - wrong_conf) < 0.0001:
+                                logging.error(f"[{self.exchange}] ✅ FIXED CONFIDENCE BUG: was {original_confidence:.6f} (1-HOLD_prob={wrong_conf:.6f}), corrected to {confidence:.6f}")
+                            else:
+                                logging.warning(f"[{self.exchange}] Confidence corrected: {original_confidence:.6f} -> {confidence:.6f}")
+                        else:
+                            logging.warning(f"[{self.exchange}] Confidence corrected: {original_confidence:.6f} -> {confidence:.6f}")
+                    # Always use recalculated confidence, even if it matches
+                else:
+                    # Fallback if probabilities are invalid
+                    confidence = original_confidence
+                    logging.warning(f"[{self.exchange}] Cannot recalculate confidence: probabilities={probabilities}")
+                
+                debug_trace.append(f"Step 3: Ensemble result - signal={signal}, confidence={confidence:.6f} (was {original_confidence:.6f}), probabilities={probabilities}")
             
             # 4. Regime Adjustment (Phase 5)
             # Downgrade signal if regime is hostile
+            # Store original values before any modifications
+            original_signal = signal
+            original_confidence = confidence
+            debug_trace.append(f"Step 4a: Before regime check - signal={signal}, confidence={confidence:.6f}")
+            
+            # Only apply regime filters for truly extreme conditions
             if current_regime == 'HIGH_VOL_CRASH' and signal == 'BUY':
+                # Suppress BUY signals during crashes
                 signal = 'HOLD'
                 confidence = 0.0
                 rationale = "Signal suppressed by High Vol Crash regime."
-            elif current_regime == 'LOW_VOL_COMPRESSION' and confidence < 0.7:
-                 # Filter weak signals in chop
-                 signal = 'HOLD' 
-                 rationale = "Weak signal filtered in Low Vol regime."
+                debug_trace.append(f"Step 4b: HIGH_VOL_CRASH filter applied - confidence set to 0.0")
+            elif current_regime == 'LOW_VOL_COMPRESSION' and confidence < 0.6:
+                # Only filter very weak signals (< 0.6) in low vol compression
+                # High confidence signals (>= 0.6) should pass through
+                signal = 'HOLD'
+                # Keep original confidence even when filtering to HOLD (for debugging)
+                # Don't modify confidence here
+                rationale = "Weak signal filtered in Low Vol regime."
+                debug_trace.append(f"Step 4b: LOW_VOL_COMPRESSION filter applied - signal=HOLD, confidence={confidence:.6f} (unchanged)")
             else:
-                 rationale = f"Horizon {horizon} | Regime {current_regime} | Conf {confidence:.1%} | Signal {signal}"
+                # All other cases: use ensemble prediction as-is
+                rationale = f"Horizon {horizon} | Regime {current_regime} | Conf {confidence:.1%} | Signal {signal}"
+                debug_trace.append(f"Step 4b: No regime filter - signal={signal}, confidence={confidence:.6f}")
+            
+            # Safety check: ensure confidence wasn't accidentally modified
+            if signal == 'HOLD' and original_confidence > 0.5 and confidence != original_confidence and confidence != 0.0:
+                # If signal was changed to HOLD but confidence was unexpectedly modified, restore it
+                logging.warning(f"[{self.exchange}] Confidence unexpectedly changed from {original_confidence:.6f} to {confidence:.6f} when setting HOLD. Restoring.")
+                confidence = original_confidence
+                debug_trace.append(f"Step 4c: Confidence restored to {confidence:.6f}")
+            
+            debug_trace.append(f"Step 4d: After regime check - signal={signal}, confidence={confidence:.6f}")
 
             # 5. Risk Sizing
+            debug_trace.append(f"Step 5a: Before risk sizing - signal={signal}, confidence={confidence:.6f}")
             risk_payload = {'fraction': 0.0, 'recommended_lots': 0, 'kelly_fraction': 0.0}
             if signal != 'HOLD':
                 current_vol = float(features_dict.get('vix', 20.0)) / 100.0
@@ -234,6 +289,7 @@ class MLSignalGenerator:
                     current_volatility=current_vol,
                     regime_risk_scale=regime_config['risk_scale'] # Phase 5 Scaling
                 )
+                debug_trace.append(f"Step 5b: After risk sizing - confidence={confidence:.6f} (should be unchanged)")
 
             metadata = {
                 'regime': current_regime,
@@ -260,6 +316,16 @@ class MLSignalGenerator:
 
             signal_id = self._register_prediction(signal, metadata.get('buy_prob'), metadata.get('sell_prob'))
             metadata['signal_id'] = signal_id
+            
+            debug_trace.append(f"Step 6: Final - signal={signal}, confidence={confidence:.6f}")
+            
+            # If confidence is suspiciously constant (0.251179), log the full trace
+            if abs(confidence - 0.251179) < 0.0001:
+                logging.error(f"[{self.exchange}] SUSPICIOUS CONFIDENCE VALUE DETECTED: {confidence:.6f}")
+                logging.error(f"[{self.exchange}] Debug trace:\n" + "\n".join(debug_trace))
+                logging.error(f"[{self.exchange}] Original ensemble confidence: {original_confidence:.6f}")
+                logging.error(f"[{self.exchange}] Probabilities: {probabilities}")
+                logging.error(f"[{self.exchange}] Metadata confidence: {metadata.get('confidence', 'N/A')}")
 
             return signal, confidence, rationale, metadata
 

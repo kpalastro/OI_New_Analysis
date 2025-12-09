@@ -106,6 +106,21 @@ class MultiHorizonEnsemble:
                 elif isinstance(saved_data, SwingTradingEnsemble):
                     # Direct object serialization
                     self.swing_model = saved_data
+                    # Ensure exchange is set for feature selector loading
+                    if not hasattr(self.swing_model, 'exchange') or not self.swing_model.exchange:
+                        self.swing_model.exchange = self.exchange
+                
+                # Initialize feature_selector and feature_columns if they don't exist
+                # (they may not have been saved with the object)
+                if not hasattr(self.swing_model, 'feature_selector'):
+                    self.swing_model.feature_selector = None
+                if not hasattr(self.swing_model, 'feature_columns'):
+                    self.swing_model.feature_columns = None
+                
+                # Reload feature selector and feature columns (they may not be in pickle)
+                # This ensures the selector is available even if it wasn't saved with the object
+                if hasattr(self.swing_model, '_load_feature_selector') and self.swing_model.exchange:
+                    self.swing_model._load_feature_selector(self.swing_model.exchange)
                     
                 LOGGER.info(f"✓ Loaded Swing Ensemble from {swing_path}")
                 loaded_count += 1
@@ -206,15 +221,83 @@ class MultiHorizonEnsemble:
                     # Check MLSignalGenerator logic: {-1: 'SELL', 0: 'HOLD', 1: 'BUY'}
                     # Usually classifiers output 0, 1, 2 indices. 
                     # Let's map 0->SELL, 1->HOLD, 2->BUY for now, need verification with train script.
-                    classes = ['SELL', 'HOLD', 'BUY'] 
+                    classes = ['SELL', 'HOLD', 'BUY']
+                    probs = pred['probabilities']
+                    predicted_class = pred['class']
+                    signal = classes[predicted_class]
+                    
+                    # CRITICAL FIX: Confidence MUST ALWAYS be max(probabilities)
+                    # This is the fundamental definition of confidence - the maximum probability
+                    # Never use 1 - probability or any other calculation
+                    confidence = float(max(probs))
+                    
+                    # Additional safety: For HOLD signals, ensure confidence equals HOLD probability
+                    # (which should be max(probs) if HOLD is the predicted class)
+                    if predicted_class == 1:  # HOLD signal
+                        hold_prob = float(probs[1])
+                        # If confidence doesn't match HOLD probability, something is wrong
+                        if abs(confidence - hold_prob) > 0.0001:
+                            logging.warning(f"[{self.exchange}] HOLD signal: confidence={confidence:.6f} != HOLD_prob={hold_prob:.6f}, fixing")
+                            confidence = hold_prob
+                        # Also check if confidence was calculated as 1 - HOLD_prob (common bug)
+                        wrong_conf = 1.0 - hold_prob
+                        if abs(confidence - wrong_conf) < 0.0001:
+                            logging.error(f"[{self.exchange}] BUG DETECTED: confidence={confidence:.6f} equals 1-HOLD_prob, correcting to {hold_prob:.6f}")
+                            confidence = hold_prob
+                    
+                    # FINAL SAFETY: Before updating result, ensure confidence is correct
+                    # This is the last chance to fix it before returning
+                    final_max_prob = float(max(probs))
+                    if abs(confidence - final_max_prob) > 0.0001:
+                        # Confidence is wrong - force correct value
+                        if predicted_class == 1:  # HOLD
+                            hold_prob = float(probs[1])
+                            wrong_conf = 1.0 - hold_prob
+                            if abs(confidence - wrong_conf) < 0.0001:
+                                logging.error(f"[{self.exchange}] 🐛 FINAL FIX: confidence={confidence:.6f} was 1-HOLD_prob, correcting to {final_max_prob:.6f}")
+                            else:
+                                logging.error(f"[{self.exchange}] FINAL FIX: confidence={confidence:.6f} != max_prob {final_max_prob:.6f}, correcting")
+                        else:
+                            logging.error(f"[{self.exchange}] FINAL FIX: confidence={confidence:.6f} != max_prob {final_max_prob:.6f}, correcting")
+                        confidence = final_max_prob
+                    
                     result.update({
-                        'signal': classes[pred['class']],
-                        'probabilities': pred['probabilities'],
-                        'confidence': max(pred['probabilities'])
+                        'signal': signal,
+                        'probabilities': probs,
+                        'confidence': confidence
                     })
                 
         except Exception as e:
             logging.error(f"Error in MultiHorizonEnsemble predict ({horizon}): {e}", exc_info=True)
+            # On error, return default HOLD signal
+            result = {
+                'horizon': horizon,
+                'signal': 'HOLD',
+                'confidence': 0.0,
+                'probabilities': [0.0, 1.0, 0.0]
+            }
             
+        # FINAL ABSOLUTE FIX: Before returning, ensure confidence ALWAYS equals max(probabilities)
+        # This is the last line of defense against the confidence bug
+        probs_final = result.get('probabilities', [])
+        if probs_final and len(probs_final) >= 3:
+            max_prob_final = float(max(probs_final))
+            current_conf = float(result.get('confidence', 0.0))
+            
+            # If confidence doesn't match max_prob, fix it
+            if abs(current_conf - max_prob_final) > 0.0001:
+                # Check if it's the 1 - HOLD_prob bug
+                if result.get('signal') == 'HOLD' and len(probs_final) > 1:
+                    hold_prob_final = float(probs_final[1])
+                    wrong_conf_final = 1.0 - hold_prob_final
+                    if abs(current_conf - wrong_conf_final) < 0.0001:
+                        logging.error(f"[{self.exchange}] 🐛 ABSOLUTE FIX: confidence={current_conf:.6f} was 1-HOLD_prob={wrong_conf_final:.6f}, correcting to {max_prob_final:.6f}")
+                    else:
+                        logging.error(f"[{self.exchange}] ABSOLUTE FIX: confidence={current_conf:.6f} != max_prob {max_prob_final:.6f}, correcting")
+                else:
+                    logging.error(f"[{self.exchange}] ABSOLUTE FIX: confidence={current_conf:.6f} != max_prob {max_prob_final:.6f}, correcting")
+                
+                result['confidence'] = max_prob_final
+        
         return result
 
