@@ -256,13 +256,32 @@ class MLSignalGenerator:
                     if signal == 'HOLD' and len(probabilities) > 1:
                         hold_prob_final = float(probabilities[1])
                         wrong_conf_final = 1.0 - hold_prob_final
-                        if abs(confidence - wrong_conf_final) < 0.0001:
-                            logging.error(f"[{self.exchange}] 🚨 ABSOLUTE FIX BEFORE REGIME: confidence={confidence:.6f} was 1-HOLD_prob={wrong_conf_final:.6f}, correcting to {max_prob_final:.6f}")
-                        else:
-                            logging.error(f"[{self.exchange}] ABSOLUTE FIX BEFORE REGIME: confidence={confidence:.6f} != max_prob {max_prob_final:.6f}, correcting")
+                        
+                        # Skip fix if HOLD_prob is 0.0 or very small - signal shouldn't be HOLD in that case
+                        if hold_prob_final <= 0.01:
+                            # HOLD_prob is too small - this is a data/model issue, not a confidence bug
+                            # Just use max_prob as confidence without logging
+                            if abs(confidence - max_prob_final) > 0.0001:
+                                confidence = max_prob_final
+                        elif abs(confidence - wrong_conf_final) < 0.0001:
+                            # This is the bug: confidence = 1 - HOLD_prob when it should be HOLD_prob
+                            # Log only once per unique case to reduce noise
+                            if not hasattr(self, '_last_fix_logged') or self._last_fix_logged != (signal, wrong_conf_final):
+                                logging.warning(f"[{self.exchange}] Fixed confidence bug: {confidence:.6f} (1-HOLD_prob={wrong_conf_final:.6f}) -> {max_prob_final:.6f}")
+                                self._last_fix_logged = (signal, wrong_conf_final)
+                            confidence = max_prob_final
+                        elif abs(confidence - max_prob_final) > 0.0001:
+                            # General mismatch - fix it
+                            if not hasattr(self, '_last_fix_logged') or self._last_fix_logged != (signal, confidence):
+                                logging.warning(f"[{self.exchange}] Corrected confidence: {confidence:.6f} -> {max_prob_final:.6f}")
+                                self._last_fix_logged = (signal, confidence)
+                            confidence = max_prob_final
                     else:
-                        logging.error(f"[{self.exchange}] ABSOLUTE FIX BEFORE REGIME: confidence={confidence:.6f} != max_prob {max_prob_final:.6f}, correcting")
-                    confidence = max_prob_final
+                        # For non-HOLD signals, confidence must equal max_prob
+                        if not hasattr(self, '_last_fix_logged') or self._last_fix_logged != (signal, confidence):
+                            logging.warning(f"[{self.exchange}] Corrected confidence: {confidence:.6f} -> {max_prob_final:.6f}")
+                            self._last_fix_logged = (signal, confidence)
+                        confidence = max_prob_final
             
             debug_trace.append(f"Step 4a: Before regime check - signal={signal}, confidence={confidence:.6f}")
             
