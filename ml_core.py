@@ -221,7 +221,8 @@ class MLSignalGenerator:
                 if probabilities and len(probabilities) >= 3:
                     # Force recalculation - this is the correct confidence
                     confidence = float(max(probabilities))
-                    # Log if we're fixing a bug (always log for debugging)
+                    
+                    # Log if we're fixing a bug
                     if abs(original_confidence - confidence) > 0.0001:
                         if signal == 'HOLD' and len(probabilities) > 1:
                             hold_prob = float(probabilities[1])
@@ -232,11 +233,11 @@ class MLSignalGenerator:
                                 logging.warning(f"[{self.exchange}] Confidence corrected: {original_confidence:.6f} -> {confidence:.6f}")
                         else:
                             logging.warning(f"[{self.exchange}] Confidence corrected: {original_confidence:.6f} -> {confidence:.6f}")
-                    # Always use recalculated confidence, even if it matches
                 else:
                     # Fallback if probabilities are invalid
                     confidence = original_confidence
-                    logging.warning(f"[{self.exchange}] Cannot recalculate confidence: probabilities={probabilities}")
+                    if not probabilities or len(probabilities) < 3:
+                        logging.warning(f"[{self.exchange}] Cannot recalculate confidence: probabilities={probabilities}")
                 
                 debug_trace.append(f"Step 3: Ensemble result - signal={signal}, confidence={confidence:.6f} (was {original_confidence:.6f}), probabilities={probabilities}")
             
@@ -245,6 +246,24 @@ class MLSignalGenerator:
             # Store original values before any modifications
             original_signal = signal
             original_confidence = confidence
+            
+            # FINAL ABSOLUTE FIX: Before regime check, ensure confidence is correct
+            # This is a last-ditch effort to fix the confidence bug
+            if probabilities and len(probabilities) >= 3:
+                max_prob_final = float(max(probabilities))
+                if abs(confidence - max_prob_final) > 0.0001:
+                    # Confidence is wrong - fix it now
+                    if signal == 'HOLD' and len(probabilities) > 1:
+                        hold_prob_final = float(probabilities[1])
+                        wrong_conf_final = 1.0 - hold_prob_final
+                        if abs(confidence - wrong_conf_final) < 0.0001:
+                            logging.error(f"[{self.exchange}] 🚨 ABSOLUTE FIX BEFORE REGIME: confidence={confidence:.6f} was 1-HOLD_prob={wrong_conf_final:.6f}, correcting to {max_prob_final:.6f}")
+                        else:
+                            logging.error(f"[{self.exchange}] ABSOLUTE FIX BEFORE REGIME: confidence={confidence:.6f} != max_prob {max_prob_final:.6f}, correcting")
+                    else:
+                        logging.error(f"[{self.exchange}] ABSOLUTE FIX BEFORE REGIME: confidence={confidence:.6f} != max_prob {max_prob_final:.6f}, correcting")
+                    confidence = max_prob_final
+            
             debug_trace.append(f"Step 4a: Before regime check - signal={signal}, confidence={confidence:.6f}")
             
             # Only apply regime filters for truly extreme conditions
